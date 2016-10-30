@@ -1,0 +1,74 @@
+Q1: All movies in a given month of a year (say May 1984)
+
+a. MATCH (mov:Movie) 
+where toInt(mov.releaseDate)>452235600000 and toInt(mov.releaseDate)<454913999000 
+return distinct mov
+
+b. MATCH (root)-[:HAS_Year]->(year1:Year {year:1984})-[:HAS_MONTH]->(start:Month {month:1})<-[:released]-(movie:Movie)
+return distinct movie
+
+
+Q2: All movies in a given time range (say between 1950 and 1975 both inclusive)
+
+a. MATCH (mov:Movie) 
+where toInt(mov.releaseDate)>-631130400000 and toInt(mov.releaseDate)<189323999000 
+return distinct mov
+
+b. MATCH
+  (root)-[:HAS_Year]->(year1:Year {year:1950})-[:HAS_MONTH]->(start:Month {month:1}),
+  (root)-[:HAS_Year]->(year2:Year {year:1975})-[:HAS_MONTH]->(end:Month {month:12}),
+  p=(start)-[:NEXT*0..]->(end)
+WITH NODES(p) AS months
+UNWIND months AS month 
+OPTIONAL MATCH (month)<-[:released]-(movie:Movie)
+return distinct movie
+
+Q3: Names of the actors and the number of movies they acted in a given time range (say between 1950 and 1975 both inclusive)
+
+a. MATCH (mov:Movie)<-[:ACTS_IN]-(actor:Actor) 
+where toInt(mov.releaseDate)>=-631130400000 and toInt(mov.releaseDate)<=189323999000 
+with actor.name as Name, count(*) as movieCount
+return distinct Name,movieCount
+
+b. MATCH
+  (root)-[:HAS_Year]->(year1:Year {year:1950})-[:HAS_MONTH]->(start:Month {month:1}),
+  (root)-[:HAS_Year]->(year2:Year {year:1975})-[:HAS_MONTH]->(end:Month {month:12}),
+  p=(start)-[:NEXT*0..]->(end)
+WITH NODES(p) AS months
+UNWIND months AS month
+OPTIONAL MATCH (month)<-[:released]-(movie:Movie)<-[:ACTS_IN]-(actor:Actor) 
+with count(movie) as cnt, actor.name as name
+return name,cnt  order by cnt desc
+
+Q4: List all directors for movies released before 1950
+
+a. MATCH (mov:Movie)<-[:DIRECTED]-(dir:Director) 
+where toInt(mov.releaseDate)<=-599594401000  
+return distinct dir.name
+
+b. Match (yy:Year) with min(yy.year) as minYear
+OPTIONAL MATCH
+  (root)-[:HAS_Year]->(year1:Year {year:minYear})-[:HAS_MONTH]->(start:Month {month:1}),
+  (root)-[:HAS_Year]->(year2:Year {year:1950})-[:HAS_MONTH]->(end:Month {month:12}),
+  p=(start)-[:NEXT*0..]->(end)
+WITH NODES(p) AS months
+UNWIND months AS month
+OPTIONAL MATCH (month)<-[:released]-(movie:Movie)<-[:DIRECTED]-(dir:Director) 
+return distinct dir.name
+
+Q5: List all 5 star rated movies after 2000.
+
+a. MATCH (mov:Movie)<-[rat:RATED]-(user:User) where toInt(mov.releaseDate)>978328799000 
+with mov as MovieName, avg(rat.stars) as avgRating 
+where avgRating=5 
+return distinct MovieName
+
+b. Match (yy:Year) with max(yy.year) as maxYear
+OPTIONAL MATCH
+  (root)-[:HAS_Year]->(year1:Year {year:2000})-[:HAS_MONTH]->(start:Month {month:1}),
+  (root)-[:HAS_Year]->(year2:Year {year:maxYear})-[:HAS_MONTH]->(end:Month {month:12}),
+  p=(start)-[:NEXT*0..]->(end)
+WITH NODES(p) AS months
+UNWIND months AS month
+OPTIONAL MATCH (month)<-[:released]-(movie:Movie)<-[rate:RATED]-(user:User) with avg(rate.stars) as rateAvg,movie.title as movieName where rateAvg=5
+return distinct movieName,rateAvg

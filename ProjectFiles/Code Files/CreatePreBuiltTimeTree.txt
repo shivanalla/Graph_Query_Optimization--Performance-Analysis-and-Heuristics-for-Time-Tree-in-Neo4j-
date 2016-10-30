@@ -1,0 +1,31 @@
+//Build a time tree with 1878 as the startYear and 2014 as the endYear
+
+WITH range(1878, 2014) AS years
+FOREACH(year IN years | 
+  MERGE (y:Year {year: year}))
+  
+WITH *
+ 
+MATCH (year:Year)
+WITH year
+ORDER BY year.year
+WITH collect(year) as years
+FOREACH(i in RANGE(0, size(years)-2) | 
+    FOREACH(year1 in [years[i]] | 
+        FOREACH(year2 in [years[i+1]] | 
+            CREATE UNIQUE (year1)-[:NEXT]->(year2))))
+
+
+create (root:Root{root:"Root"})
+WITH range(1878, 2014) As years
+foreach (eachYear in years |
+merge (n:Year{year:eachYear})
+merge (root:Root{root:"Root"})
+create (root)-[:HAS_Year]->(n))
+
+
+match allMovies =(eachMovie:Movie) 
+where eachMovie.releaseMonth is not null
+foreach(eachMovie in nodes(allMovies)|
+merge (year:Year{year:eachMovie.releaseYear})<-[:HAS_Year]-(root:Root{root:"Root"})
+create (year)<-[:released]-(eachMovie))
